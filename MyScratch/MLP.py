@@ -80,14 +80,14 @@ def train(net, train_iter, test_iter, loss, num_epochs, batch_size, lr):
     optimizer = optim.SGD(net.parameters(), lr=lr) # use SGD
     
     for epoch in range(num_epochs):
-        train_loss_sum, train_acc_sum, n = 0.0, 0.0, 0 #?
+        train_loss_sum, train_acc_sum, n = 0.0, 0.0, 0 # an new epoch=an new sweep over data with batch_size
         for X, y in train_iter:
-            optimizer.zero_grad() #? Y
+            optimizer.zero_grad() # initialize grad vector
             
             yhat = net(X) # train fit (under current parameters)
             train_loss = loss(yhat, y) # cross entropy
             train_loss.backward() # compute gradient
-            optimizer.step() #? Y
+            optimizer.step() # execute GD; update parameters
             
             y = y.type(torch.float32) #? why no long type now
             train_loss_sum += train_loss.item()
