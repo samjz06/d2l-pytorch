@@ -35,6 +35,7 @@ class Net(nn.Module):
         X = X.reshape((-1, self.num_inputs)) # n * M: M is the number of features/pixels
         H1 = self.relu(self.linear_1(X)) # net activation value
         out = self.linear_2(H1)
+        #* note: no need to add F.softmax explicitly; torch.nn.CrossEntropyLoss require pre-softmax logits!
         
         return out
     
