@@ -18,7 +18,7 @@ from torch.utils.data import DataLoader
 
 
 # my fancy MLP
-class Net(nn.Module):
+class Net(nn.Module): # inherit from nn.Module
     def __init__(self, num_inputs=784, num_outputs=10, num_hiddens=256, is_training=True):
         super(Net, self).__init__()
         
