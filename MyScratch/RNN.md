@@ -49,3 +49,10 @@ Book summary:
 - Zipf's law governs the word distribution for not only unigrams but also the other n-grams
 - There is a lot of structure but not enough freq to deal with infrequent word combinations efficiently via Laplace smoothing
 - The main choices for reading long sequences are random sampling and sequential partitioning. The latter can ensure that the subseq from two adjacent minibatches during iteration are adjacent on the original sequence.
+
+# 8.4 RNN
+## RNN w. Hidden States
+Questions:
+1. are $W_{xh}$ of the same size? This is not a Q, we just dicuss a single recurrent layer.
+2. what is $X_{t-1}$? Last minibatch. 
+3. Then why should one save $H_{t-1}$ among batches?
