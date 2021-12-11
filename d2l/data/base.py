@@ -76,7 +76,8 @@ def data_iter_random(corpus_indices, batch_size, num_steps, ctx=None):
         batch_indices = example_indices[i:(i+batch_size)]
         X = [_data(j) for j in batch_indices]
         Y = [_data(j + 1) for j in batch_indices]
-        yield torch.Tensor(X,  device=ctx), torch.Tensor(Y,  device=ctx)
+        
+        yield torch.tensor(X).to(ctx), torch.tensor(Y).to(ctx)
 
 
 def load_data_time_machine(num_examples=10000):
