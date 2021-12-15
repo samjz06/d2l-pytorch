@@ -56,3 +56,19 @@ Questions:
 1. are $W_{xh}$ of the same size? This is not a Q, we just dicuss a single recurrent layer.
 2. what is $X_{t-1}$? Last minibatch. 
 3. Then why should one save $H_{t-1}$ among batches?
+
+# 10. Attention Mechanisms
+## Overview
+- Nadaraya-Watson kernel regression is a simple demostration of machine learning with attention mechanisms
+- we will show how to use these functions to design the Bahdanau attention
+
+## 10.1 Attention Cues
+- Volitional Cue, Nonvolitional Cue
+- Volitional: with delibrate intention
+
+### 10.1.2 Queries, Keys and Values
+- In the context of attention mechanisms, volitional cues = Queries.
+  - Given *Query*, attention mechanisms bias selection over sensory inputs(e.g. intermediate feature representations) via *attention pooling*.
+  - Sensory inputs are called *values*.
+  - Every value is paired with a *key*: nonvolitional cue of that sensory.
+- Design attention pooling s.t. *query*(volitional cue) can interact with *keys*(nonvolitional cue), which guides bias selection over *values*(sensory inputs).

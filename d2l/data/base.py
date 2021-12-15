@@ -80,9 +80,15 @@ def data_iter_random(corpus_indices, batch_size, num_steps, ctx=None):
         yield torch.tensor(X).to(ctx), torch.tensor(Y).to(ctx)
 
 
-def load_data_time_machine(num_examples=10000):
+def load_data_time_machine(num_examples=10000, **kwargs):
     """Load the time machine data set (available in the English book)."""
-    with open('../data/timemachine.txt') as f:
+    # print(kwargs)
+    if 'actual_path' in kwargs:
+      actual_path = kwargs['actual_path']
+    else:
+      actual_path = '../data/timemachine.txt' 
+    # print(actual_path)
+    with open(actual_path) as f:
         raw_text = f.read()
     lines = raw_text.split('\n')
     text = ' '.join(' '.join(lines).lower().split())[:num_examples]
