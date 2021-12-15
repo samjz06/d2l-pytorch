@@ -1,7 +1,6 @@
 import os
 
 from torch._C import device
-from torch.optim import optimizer
 
 from d2l.train import grad_clipping
 os.chdir(r'G:\RUTGERS\Dive-into-DL-PyTorch_eng')
@@ -21,44 +20,14 @@ import time
 # load corpus and create vocabulary and calculate indices
 corpus_indices, vocab = d2l.load_data_time_machine(num_examples=10000,
                                                    actual_path = os.getcwd()+r'/data/timemachine.txt')
-type(corpus_indices)
-
-# One-hot encoding:
-#   After tokenization, we have had vocabulary and their corresponding indices
-#   That is, e.g., a sequence of characters, 'asdf12[', we could get a vector of their indices from vocab.token_to_idx, e.g. [12, 3, 54, 2, 6, 10]
-#   This would be a sample for RNN to be trained on.
-#   However, to feed this vector into RNN, we need a encoding strategy, and the resulted tensor will have shape
-#   (number of states, batch size, embedded size)
-#   
-#   One-hot encoding is the simplest solution; obviously, will not be ideal for a large vocabulary
-
-X = torch.randint(0, 20, (5,)) # 5 random integer, like a character sequence
-print(X)
-F.one_hot(X, len(vocab))
-
-X = torch.randint(0, len(vocab), (2, 5)) # now generate 2 sequence, each has 5 states
-print(X)
-X = F.one_hot(X, len(vocab))
-X = X.permute(1,0,2) 
-X.shape # (num_states, batch_size, embedded_size)
-
 
 def to_onehot(X,size):
     return F.one_hot(X.long().transpose(0,-1), size)
 
-num_inputs, num_hiddens, num_outputs = len(vocab), 512, len(vocab)
-ctx = d2l.try_gpu()
-print('Using', ctx)
-
-# Create the parameters of the model, initialize them and attach gradients
 def get_params():
     def _one(shape):
         return torch.Tensor(size=shape).normal_(std=0.01).to(ctx)
-        # x = torch.Tensor(size=shape).normal_(std=0.01)
-        # return torch.tensor(x, device=ctx) # use .clone() for safe copy
-        # return torch.Tensor(size=shape, device=ctx).normal_(std=0.01) 
-        # # torch.Tensor() is subclass of torch.tensor, `device` argument is not supported
-
+        
     # Hidden layer parameters
     W_xh = _one((num_inputs, num_hiddens))
     W_hh = _one((num_hiddens, num_hiddens))
@@ -89,41 +58,9 @@ def rnn(inputs, state, params):
         Y = torch.matmul(H.float(), W_hq) + b_q
         outputs.append(Y)
     return outputs, (H,)
-    # RMQ: 
-    # for single element tuple, comma is required
-    # (1) wrong, (1,) correct
-
-X = torch.arange(10).reshape((2, 5))
-# inputs = to_onehot(X, len(vocab))
-# len(inputs), inputs[0].shape
-state = init_rnn_state(X.shape[0], num_hiddens, ctx) 
-# single layer, len(state)=1; and state[0].shape = (batch_size, num_hidden)
-inputs = to_onehot(X.to(ctx), len(vocab))
-params = get_params()
-outputs, state_new = rnn(inputs, state, params)
-print(f'length of outputs={len(outputs)} this should be of length "num_step"\n', 
-      f'each timestep, output is of shape {outputs[0].shape}, (batch_size, embedded_size)\n',
-      f'each timestep, output is of shape {state_new[0].shape}, (batch_size, num_hidden)')
-
-# This function is saved in the d2l package for future use
+    
 def predict_rnn(prefix, num_chars, rnn, params, init_rnn_state,
                 num_hiddens, vocab, ctx):
-    """[summary]
-
-    Args:
-        prefix ([type]): leading character sequence
-        num_chars ([type]): num steps to be predict forward
-        rnn ([type]): rnn layer, TRAINED 
-        params ([type]): params list for hidden and output layer
-        init_rnn_state ([type]): method for init params
-        num_hiddens ([type]): num of neuron in hidden layer
-        vocab ([type]): vocab, used to refer token from idx, or vice versa
-        ctx ([type]): device
-
-    Returns:
-        [type]: [description]
-    """
-    
     state = init_rnn_state(1, num_hiddens, ctx) # batch=1: single string pred
     output = [vocab[prefix[0]]] # initiate output with the index of the first character
     for t in range(num_chars + len(prefix) - 1): 
@@ -150,25 +87,18 @@ def predict_rnn(prefix, num_chars, rnn, params, init_rnn_state,
             output.append(int(Y[0].argmax(dim=1).item()))
     return ''.join([vocab.idx_to_token[i] for i in output])
 
-
-def train_epoch(data_iter, params, clipping_theta, lr, ):
-    # this implement the training process with in an epoch
-    #   for e in epoch:
-    #       train_epoch()
-    # 
-    # if random sampling, init randomly, otherwise, continue from last state of last batch
-    
+def train_epoch(data_iter, random_data_iter, data_iter_fn, batch_size, num_steps, loss, params, clipping_theta, lr, ):
     if not random_data_iter: 
         state = init_rnn_state(batch_size, num_hiddens, ctx)
     data_iter = data_iter_fn(corpus_indices, batch_size, num_steps, ctx)
     l_sum, n = 0.0, 0
     for X, Y in data_iter:
-        # # initiate state accordingly. Either random or from last batch
-        # if not is_random_iter:
-        #     state = init_rnn_state(batch_size, num_hiddens, ctx)
-        # else:
-        #     for s in state:
-        #         s.detach_() # if consecutive sampling, use last state 
+        # initiate state accordingly. Either random or from last batch
+        if random_data_iter:
+            state = init_rnn_state(batch_size, num_hiddens, ctx)
+        else:
+            for s in state:
+                s.detach_() # if consecutive sampling, use last state 
         inputs = to_onehot(X, len(vocab)) # one-hot encoding
         (outputs, state) = rnn(inputs, state, params) # forward computation
         outputs = torch.cat(outputs, dim=0) # outputs shape (num_steps*batch_size, embedded_size)
@@ -178,16 +108,12 @@ def train_epoch(data_iter, params, clipping_theta, lr, ):
         with torch.no_grad():
             grad_clipping(params, clipping_theta, ctx)
             d2l.sgd(params, lr, 1)
-            # rmq: 
-            # since this way didnt formulate a rnn module, rnn() is only the forward computation function
-            # so compute porams update manually, rather than optimizer.step(). Latter way requires:
-            # RNN module inherited from nn.Module, and register optim.sgd(net.parameters(), lr)
         l_sum += l.item() * y.numel() # y.numel(): total num of ele in y
         n += y.numel()
         
     return math.exp(l_sum/n) # perplexity
 
-def train(corpus_indices, random_data_iter, epoch_nums, batch_size, num_steps, ctx, clipping_theta, lr, prefixes):
+def train_and_pred(corpus_indices, random_data_iter, epoch_nums, batch_size, num_steps, ctx, clipping_theta, lr, prefixes, num_chars):
     if random_data_iter:
         data_iter_fn = d2l.data_iter_random
     else:
@@ -198,18 +124,19 @@ def train(corpus_indices, random_data_iter, epoch_nums, batch_size, num_steps, c
     start = time.time()
     for epoch in range(epoch_nums):
         data_iter = data_iter_fn(corpus_indices, batch_size, num_steps, ctx) # prepare data_iter for current epoch
-        perplexity = train_epoch(data_iter, params, clipping_theta, lr)
+        perplexity = train_epoch(data_iter, random_data_iter, data_iter_fn, batch_size, num_steps, loss, params, clipping_theta, lr)
         if (epoch+1) % 50 == 0:
-            print(f'epoch={epoch}, perplexity={perplexity}, time={time.time()-start}')
+            print(f'epoch={epoch+1}, perplexity={perplexity}, time={time.time()-start}')
             start = time.time()
         if (epoch+1) % 100 == 0:
             for prefix in prefixes:
                 print(predict_rnn(prefix, num_chars, rnn, params, init_rnn_state, num_hiddens, vocab, ctx))
 
-# Rmq 1:
-# Above writing is mainly for understanding purpose, may not bug-free.
-# Rmq 2:
-# transpose() can only swap two dimensions, permute() can swap all dim(has to provide all)
-# if you need a copy use clone();
-# if you need the same storage use view().
-# The semantics of reshape() are that it may or may not share the storage and you don’t know beforehand.
+ctx = d2l.try_gpu()
+num_inputs, num_hiddens, num_outputs = len(vocab), 512, len(vocab)
+num_epochs, num_steps, batch_size = 500, 64, 32
+lr, clipping_theta = 1, 1
+prefixes = ['traveller']
+train_and_pred(corpus_indices, True, num_epochs, batch_size, num_steps, 
+               ctx, clipping_theta, lr,
+               prefixes, 30)
